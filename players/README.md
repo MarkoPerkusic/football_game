@@ -1,6 +1,7 @@
 # Players
 
-**TODO: Add description**
+Part of a game that creates two teams, the Blue one and the Red one.
+Once the team process has been created, they will create numbers with numbers from 1 to 11.
 
 ## Installation
 
