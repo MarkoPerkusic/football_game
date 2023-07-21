@@ -44,7 +44,7 @@ defmodule Team do
     end
   end
 
-  def ping_players(team_name) do
+  def ping_players(team_name, msg) do
     IO.puts("PING...")
     for num <- 1..11 do
       IO.inspect(team_name, label: "Team name: ")
@@ -55,29 +55,32 @@ defmodule Team do
       case Process.whereis(atom_name) do
         pid when is_pid(pid) ->
             IO.inspect(pid, label: "PID is: ")
-            send(pid, {:position, self()})
+            send(pid, {msg, self()})
         nil ->
             IO.puts("Process not found for atom: #{atom_name}")
       end
     end
   end
-  
+
   def loop(players_info, team_name) do
     receive do
       {:positions, from} ->
         IO.puts "Received message to ping!"
-        ping_players(team_name)
+        ping_players(team_name, :position)
         if length(players_info) == 11 do
           send(from, {:blue_team, players_info})
           loop([], team_name)
         else
           loop(players_info, team_name)
-        end 
+        end
+      {:move, _from} ->
+         ping_players(team_name, :move)
+         loop(players_info, team_name)
       {:position, player_msg} ->
         new_players_info = players_info ++ [player_msg]
         loop(new_players_info, team_name)
       {:testing} ->
-        ping_players(team_name)
+        ping_players(team_name, :testing)
         loop(players_info, team_name)
       {:end, _} ->
         :ok
@@ -85,4 +88,3 @@ defmodule Team do
   end
 end
 
-#for num <- 1..11 do IO.puts("PING: #{num}! #{String.to_atom("team_name" <> to_string(num))}") send(String.to_atom("self"), {n}) end
