@@ -1,13 +1,16 @@
 #!/usr/bin/python3
 
-import pygame, random
+import pygame, random, asyncio
 import values
 from updater import Updater
 import logging
+import queue  # Import Queue for shared data structure
 
+# Define a global queue for shared data
+data_queue = queue.Queue()
 
-X = values.X
-Y = values.Y
+X = 800
+Y = 500
 RED = values.RED
 BLUE = values.BLUE
 
@@ -20,6 +23,24 @@ file_handler = logging.FileHandler("main.log")
 file_handler.setFormatter(formater)
 
 logger.addHandler(file_handler)
+
+
+class Player:
+    def __init__(self, team_name, number, x, y):
+        self.team_name = team_name
+        self.number = number
+        self.x = x
+        self.y = y
+        self.running = False
+
+    async def move(self):
+        await asyncio.sleep(1)  # Simulate time between moves
+        self.x += random.choice([-5, 0, 5])
+        self.y += random.choice([-1, 0, 1])
+        print(f"Player {self.number} from {self.team_name} team moved to ({self.x}, {self.y})")
+        data_queue.put((self.x, self.y, self.team_name))
+        print("Player movement stopped.")
+
 
 def elixir_mock(players):
     """
@@ -36,8 +57,15 @@ def elixir_mock(players):
 
     return res
 
+def update(screen, image, data):
+    screen.blit(pygame.transform.scale(image, (X, Y)), (0,0))
+    print(f"data: {data}")
+    for i,j,k in data:
+        print(f"i: {i} j: {j} k: {k}")
+        pygame.draw.circle(screen, k, [i, j], 10)
 
-def main():
+
+async def main():
     pygame.init()
     logger.info("Pygame initialization done")
 
@@ -49,28 +77,40 @@ def main():
     pygame.display.flip()
 
     logger.info("Updating players positions")
-    players = [(300, 100, BLUE), (300, 500, BLUE), (100, 300, RED), (500, 300, RED),
-                (300, 200, BLUE), (300, 600, BLUE), (200, 300, RED), (600, 300, RED)]
+    #players = [(300, 100, BLUE), (300, 500, BLUE), (100, 300, RED), (500, 300, RED),
+    #            (300, 200, BLUE), (300, 600, BLUE), (200, 300, RED), (600, 300, RED)]
+
+    #player = [Player("Blue", 2, 100, 100)]
+    player = Player("Blue", 2, 100, 100)
+    player_task = asyncio.create_task(player.move())
 
 
     running = True
-    update = Updater(X, Y)
     while running:
-        pygame.time.delay(300)
-        positions = elixir_mock(players)
-        logger.info(f"{positions}")
+        pygame.time.delay(100)
+        player_task = asyncio.create_task(player.move())
 
-        update.move_players(screen, image, positions)
-        pygame.display.flip()
+        # Read from the shared data queue to obtain the latest position data
+        try:
+            data = data_queue.get_nowait()
+            print(f"{data=}")
+        except queue.Empty:
+            pass
+        else:
+            update(screen, image, [data])  # Update screen with latest position data
+            pygame.display.flip()
 
         
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
+                player.running = running
+
+        await player_task 
 
     logger.info("Exiting game!")
     pygame.quit()
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
