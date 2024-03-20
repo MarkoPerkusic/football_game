@@ -4,9 +4,8 @@ import asyncio
 import values
 
 # Define colors
-WHITE = (255, 255, 255)
-BLUE = (0, 0, 255)
-RED = (255, 0, 0)
+BLUE = values.BLUE
+RED = values.RED
 
 # Define screen dimensions
 SCREEN_WIDTH = values.WIDTH
@@ -27,6 +26,7 @@ class Player:
 
     def draw(self, screen):
         pygame.draw.circle(screen, self.team_color, (self.x, self.y), 10)
+
 
 async def main():
     pygame.init()
@@ -94,6 +94,7 @@ async def main():
 
         # Update pitch image so there is not treaces of previus positions
         screen.blit(pygame.transform.scale(image, (SCREEN_WIDTH, SCREEN_HEIGHT)), (0, 0))
+
 
     pygame.quit()
 
