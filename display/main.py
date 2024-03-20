@@ -1,76 +1,101 @@
-#!/usr/bin/python3
-
-import pygame, random
+import pygame
+import random
+import asyncio
 import values
-from updater import Updater
-import logging
 
+# Define colors
+WHITE = (255, 255, 255)
+BLUE = (0, 0, 255)
+RED = (255, 0, 0)
 
-X = values.X
-Y = values.Y
-RED = values.RED
-BLUE = values.BLUE
+# Define screen dimensions
+SCREEN_WIDTH = values.WIDTH
+SCREEN_HEIGHT = values.HEIGHT
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+class Player:
+    def __init__(self, team_color, number, x, y):
+        self.team_color = team_color
+        self.number = number
+        self.x = x
+        self.y = y
 
-formater = logging.Formatter("%(asctime)s — %(name)s — %(levelname)s — %(message)s")
+    async def move(self):
+        #while True:
+        await asyncio.sleep(0.1)  # Simulate delay
+        self.x += random.randint(-1, 1)
+        self.y += random.randint(-1, 1)
 
-file_handler = logging.FileHandler("main.log")
-file_handler.setFormatter(formater)
+    def draw(self, screen):
+        pygame.draw.circle(screen, self.team_color, (self.x, self.y), 10)
 
-logger.addHandler(file_handler)
-
-def elixir_mock(players):
-    """
-    Function that mocks data provided from elixir part
-    """
-
-    logger.info("Mocking elixir values")
-    res = []
-    for i in players:
-        (x, y, c) = i
-        x = x + random.randrange(-50, 60, 5)
-        y = y + random.randrange(-50, 60, 5)
-        res.append((x, y, c))
-
-    return res
-
-
-def main():
+async def main():
     pygame.init()
-    logger.info("Pygame initialization done")
-
-    screen = pygame.display.set_mode((X, Y))
-
-    pygame.display.set_caption("GAME")
+    screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+    pygame.display.set_caption("Football Game")
     image = pygame.image.load("pitch.png").convert()
-    screen.blit(pygame.transform.scale(image, (X,Y)), (0,0))
+    screen.blit(pygame.transform.scale(image, (SCREEN_WIDTH, SCREEN_HEIGHT)), (0, 0))
     pygame.display.flip()
 
-    logger.info("Updating players positions")
-    players = [(300, 100, BLUE), (300, 500, BLUE), (100, 300, RED), (500, 300, RED),
-                (300, 200, BLUE), (300, 600, BLUE), (200, 300, RED), (600, 300, RED)]
+    # Create players for blue team
+    blue_players = [
+        Player(BLUE, 1, 20, SCREEN_HEIGHT // 2),  # Golman
+        Player(BLUE, 2, 150, SCREEN_HEIGHT // 6),  # Obrambena linija
+        Player(BLUE, 3, 150, SCREEN_HEIGHT // 3 + 40),
+        Player(BLUE, 4, 150, (SCREEN_HEIGHT // 2) + SCREEN_HEIGHT // 6 - 40),
+        Player(BLUE, 5, 150, (SCREEN_HEIGHT // 2) + (SCREEN_HEIGHT // 3)),
+        Player(BLUE, 6, 300, SCREEN_HEIGHT // 6),  # Srednja linija
+        Player(BLUE, 7, 300, (SCREEN_HEIGHT // 2) + (SCREEN_HEIGHT // 6) - 40),
+        Player(BLUE, 8, 300, SCREEN_HEIGHT // 3 + 40),
+        Player(BLUE, 9, 300, (SCREEN_HEIGHT // 2) + (SCREEN_HEIGHT // 3)),
+        Player(BLUE, 10, 450, SCREEN_HEIGHT // 3 + 40),  # Napad
+        Player(BLUE, 11, 450, (SCREEN_HEIGHT // 2) + (SCREEN_HEIGHT // 6) - 40)
+    ]
 
+    # Create players for red team
+    red_players = [
+        Player(RED, 1, SCREEN_WIDTH - 20, SCREEN_HEIGHT // 2),  # Golman
+        Player(RED, 2, SCREEN_WIDTH - 150, SCREEN_HEIGHT // 6),  # Obrambena linija
+        Player(RED, 3, SCREEN_WIDTH - 150, SCREEN_HEIGHT // 3 + 40),
+        Player(RED, 4, SCREEN_WIDTH - 150, (SCREEN_HEIGHT // 2) + SCREEN_HEIGHT // 6 - 40),
+        Player(RED, 5, SCREEN_WIDTH - 150, (SCREEN_HEIGHT // 2) + (SCREEN_HEIGHT // 3)),
+        Player(RED, 6, SCREEN_WIDTH - 300, SCREEN_HEIGHT // 6),  # Srednja linija
+        Player(RED, 7, SCREEN_WIDTH - 300, (SCREEN_HEIGHT // 2) + (SCREEN_HEIGHT // 6) - 40),
+        Player(RED, 8, SCREEN_WIDTH - 300, SCREEN_HEIGHT // 3 + 40),
+        Player(RED, 9, SCREEN_WIDTH - 300, (SCREEN_HEIGHT // 2) + (SCREEN_HEIGHT // 3)),
+        Player(RED, 10, SCREEN_WIDTH - 450, SCREEN_HEIGHT // 3 + 40),  # Napad
+        Player(RED, 11, SCREEN_WIDTH - 450, (SCREEN_HEIGHT // 2) + (SCREEN_HEIGHT // 6) - 40)
+    ]
 
+    clock = pygame.time.Clock()
     running = True
-    update = Updater(X, Y)
+
+    # Start player movement coroutines and collect tasks in lists
+    blue_tasks = [asyncio.create_task(player.move()) for player in blue_players]
+    red_tasks = [asyncio.create_task(player.move()) for player in red_players]
+
     while running:
-        pygame.time.delay(300)
-        positions = elixir_mock(players)
-        logger.info(f"{positions}")
-
-        update.move_players(screen, image, positions)
-        pygame.display.flip()
-
-        
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
+        
+        # Start player movement coroutines and collect tasks in lists
+        blue_tasks = [asyncio.create_task(player.move()) for player in blue_players]
+        red_tasks = [asyncio.create_task(player.move()) for player in red_players]
 
-    logger.info("Exiting game!")
+        # Update player positions
+        for player in blue_players + red_players:
+            player.draw(screen)
+
+        pygame.display.flip()
+        clock.tick(20)  # Limit frame rate to 60 FPS
+
+        # Await tasks to ensure concurrent player movements
+        await asyncio.gather(*blue_tasks, *red_tasks)
+
+        # Update pitch image so there is not treaces of previus positions
+        screen.blit(pygame.transform.scale(image, (SCREEN_WIDTH, SCREEN_HEIGHT)), (0, 0))
+
     pygame.quit()
 
-
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
